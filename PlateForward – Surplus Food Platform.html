@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>PlateForward – Surplus Food Platform</title>
+<style>
+:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);--bg:#f4f8f5;--card:#fff;--ink:#12281d;--mut:#5b6f63;--line:#dbe6df;--g:#1f8a5b;--gd:#0f3d2b;--amb:#b7791f;--red:#c0392b;--blue:#2b6cb0}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0d1a14;--card:#14271e;--ink:#e6f2ea;--mut:#92a89a;--line:#24402f;--g:#3ccf8e;--gd:#0a2a1d;--amb:#e6b04a;--red:#ef6b5c;--blue:#6aa8ee}}
+:root[data-theme="dark"]{--bg:#0d1a14;--card:#14271e;--ink:#e6f2ea;--mut:#92a89a;--line:#24402f;--g:#3ccf8e;--gd:#0a2a1d;--amb:#e6b04a;--red:#ef6b5c;--blue:#6aa8ee}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif}
+header{background:var(--gd);color:#fff;padding:14px 20px;display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between}
+header h1{font-size:18px;margin:0}header small{opacity:.7;display:block;font-weight:400}
+nav{display:flex;gap:4px;flex-wrap:wrap}
+nav button{background:transparent;border:0;color:#cfe8da;padding:8px 14px;border-radius:8px;cursor:pointer;font:inherit}
+nav button.on{background:#1f8a5b;color:#fff}
+main{max-width:1050px;margin:0 auto;padding:18px}
+.bar{display:flex;gap:10px;align-items:center;margin-bottom:14px;flex-wrap:wrap}
+select,input{font:inherit;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--ink)}
+button.b{background:var(--g);color:#fff;border:0;padding:8px 14px;border-radius:8px;cursor:pointer;font:inherit}
+button.s{background:transparent;color:var(--red);border:1px solid var(--red);padding:5px 10px;border-radius:8px;cursor:pointer;font:inherit}
+button.b.sm{padding:5px 10px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-bottom:16px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px}
+.card h3{margin:0 0 4px;font-size:13px;color:var(--mut);font-weight:500}.card .n{font-size:26px;font-weight:700}
+.wrap{overflow-x:auto}table{width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--line);border-radius:12px}
+th,td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--line);white-space:nowrap}th{font-size:12px;color:var(--mut);text-transform:uppercase}
+.pill{padding:2px 9px;border-radius:99px;font-size:12px;font-weight:600;border:1px solid currentColor}
+.Available{color:var(--g)}.Claimed{color:var(--blue)}.PickedUp{color:var(--amb)}.Delivered{color:var(--g);background:rgba(31,138,91,.12)}.Expired{color:var(--mut)}.Cancelled{color:var(--red)}
+h2{font-size:16px;margin:20px 0 8px}
+pre{background:var(--gd);color:#bff0d6;padding:12px;border-radius:10px;overflow-x:auto;font-size:13px}
+#toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(20px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:10px;opacity:0;transition:.3s;pointer-events:none;max-width:90%}
+#toast.on{opacity:1}.mut{color:var(--mut)}
+</style></head><body>
+<header><h1>PlateForward<small>Surplus food donation &amp; distribution</small></h1>
+<nav id="nav"></nav></header>
+<main id="app"></main><div id="toast"></div>
+<script>
+const KEY='pf_db_v1',H=3600000,$=s=>document.querySelector(s);
+const FLOW={Available:['Claimed','Cancelled','Expired'],Claimed:['PickedUp','Cancelled'],PickedUp:['Delivered'],Delivered:[],Expired:[],Cancelled:[]};
+let db,tab='dash',who={rest:1,ngo:1,vol:1},filter='All';
+function seed(){const n=Date.now();return{seq:10,
+restaurants:[{id:1,name:'Spice Route Kitchen',area:'Park Street'},{id:2,name:'Bengal Bakes',area:'Salt Lake'},{id:3,name:'Green Leaf Café',area:'Howrah'}],
+ngos:[{id:1,name:'Annapurna Foundation'},{id:2,name:'Hope Community Kitchen'},{id:3,name:'City Shelter Trust'}],
+volunteers:[{id:1,name:'Riya Sen'},{id:2,name:'Arjun Das'},{id:3,name:'Meera Paul'}],
+donations:[
+{id:1,rid:1,item:'Veg biryani trays',qty:12,exp:n+5*H,st:'Available',nid:null,vid:null,at:n-2*H},
+{id:2,rid:2,item:'Bread loaves',qty:8,exp:n+1.5*H,st:'Available',nid:null,vid:null,at:n-3*H},
+{id:3,rid:3,item:'Dal and rice packs',qty:20,exp:n+4*H,st:'Claimed',nid:1,vid:null,at:n-4*H},
+{id:4,rid:1,item:'Chapati bundles',qty:6,exp:n-1*H,st:'Available',nid:null,vid:null,at:n-9*H},
+{id:5,rid:2,item:'Sandwich boxes',qty:10,exp:n+8*H,st:'Delivered',nid:2,vid:2,at:n-20*H}],
+audit:[{id:1,ts:n-20*H,did:5,from:'—',to:'Available',by:'Bengal Bakes'},{id:2,ts:n-19*H,did:5,from:'Available',to:'Claimed',by:'Hope Community Kitchen'},{id:3,ts:n-18*H,did:5,from:'Claimed',to:'PickedUp',by:'Arjun Das'},{id:4,ts:n-17*H,did:5,from:'PickedUp',to:'Delivered',by:'Arjun Das'}]}}
+function load(){try{const s=localStorage.getItem(KEY);if(s)return JSON.parse(s)}catch(e){}return seed()}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(db))}catch(e){}}
+db=load();
+const nm=(t,id)=>(db[t].find(x=>x.id==id)||{}).name||'—';
+const fmt=t=>new Date(t).toLocaleString('en-IN',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
+function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('on');setTimeout(()=>t.classList.remove('on'),2600)}
+function log(d,from,to,by){db.audit.push({id:++db.seq,ts:Date.now(),did:d.id,from,to,by})}
+// time-based rule: expire stale listings
+function sweep(){db.donations.forEach(d=>{if(d.st==='Available'&&d.exp<Date.now()){d.st='Expired';log(d,'Available','Expired','system')}})}
+// transaction-safe status change: re-reads row, validates transition, writes data+audit together
+function move(id,to,by,patch){sweep();const d=db.donations.find(x=>x.id===id);
+ if(!d||!FLOW[d.st].includes(to)){toast('Rejected: '+(d?d.st+' → '+to+' is not allowed':'not found')+'. Someone may have acted first.');save();render();return false}
+ const snap=JSON.stringify(db);try{const from=d.st;Object.assign(d,patch||{},{st:to});log(d,from,to,by);save()}catch(e){db=JSON.parse(snap)}
+ toast('Donation #'+id+' is now '+to);render();return true}
+function add(){const item=$('#fi').value.trim(),qty=+$('#fq').value,hrs=+$('#fh').value;
+ if(!item||qty<=0||hrs<=0){toast('Enter item, quantity and hours to expiry');return}
+ const d={id:++db.seq,rid:who.rest,item,qty,exp:Date.now()+hrs*H,st:'Available',nid:null,vid:null,at:Date.now()};
+ db.donations.push(d);log(d,'—','Available',nm('restaurants',who.rest));save();toast('Surplus listed. Nearby NGOs notified by email (simulated).');render()}
+const pill=s=>`<span class="pill ${s}">${s}</span>`;
+function sel(key,t){return `<select onchange="who.${key}=+this.value;render()">${db[t].map(x=>`<option value="${x.id}" ${x.id==who[key]?'selected':''}>${x.name}</option>`).join('')}</select>`}
+function table(h,rows){return `<div class="wrap"><table><tr>${h.map(x=>`<th>${x}</th>`).join('')}</tr>${rows.join('')||`<tr><td colspan="${h.length}" class="mut">No rows</td></tr>`}</table></div>`}
+function views(){
+ if(tab==='dash'){const D=db.donations,c=s=>D.filter(d=>d.st===s).length,kg=D.reduce((a,d)=>a+d.qty,0),done=D.filter(d=>d.st==='Delivered').reduce((a,d)=>a+d.qty,0);
+  const soon=D.filter(d=>d.st==='Available'&&d.exp-Date.now()<2*H);
+  const list=D.filter(d=>filter==='All'||d.st===filter).sort((a,b)=>b.id-a.id);
+  return `<div class="grid"><div class="card"><h3>Total surplus listed</h3><div class="n">${kg} units</div></div><div class="card"><h3>Delivered</h3><div class="n">${done} units</div></div><div class="card"><h3>Available now</h3><div class="n">${c('Available')}</div></div><div class="card"><h3>Expired / Cancelled</h3><div class="n">${c('Expired')} / ${c('Cancelled')}</div></div></div>
+  <h2>Time-based query: expiring within 2 hours</h2><pre>SELECT item, expiry_time FROM donation
+WHERE status='Available'
+  AND expiry_time &lt; NOW() + INTERVAL 2 HOUR;</pre>${table(['Item','Qty','Expires'],soon.map(d=>`<tr><td>${d.item}</td><td>${d.qty}</td><td>${fmt(d.exp)}</td></tr>`))}
+  <h2>All donations</h2><div class="bar"><select onchange="filter=this.value;render()">${['All',...Object.keys(FLOW)].map(s=>`<option ${s==filter?'selected':''}>${s}</option>`).join('')}</select></div>
+  ${table(['#','Restaurant','Item','Qty','Expiry','NGO','Volunteer','Status'],list.map(d=>`<tr><td>${d.id}</td><td>${nm('restaurants',d.rid)}</td><td>${d.item}</td><td>${d.qty}</td><td>${fmt(d.exp)}</td><td>${nm('ngos',d.nid)}</td><td>${nm('volunteers',d.vid)}</td><td>${pill(d.st)}</td></tr>`))}`}
+ if(tab==='rest'){const mine=db.donations.filter(d=>d.rid==who.rest).sort((a,b)=>b.id-a.id);
+  return `<div class="bar"><b>Restaurant:</b>${sel('rest','restaurants')}</div><div class="card"><h3>List surplus food</h3><div class="bar" style="margin:8px 0 0"><input id="fi" placeholder="Food item"><input id="fq" type="number" min="1" placeholder="Quantity" style="width:110px"><input id="fh" type="number" min="1" placeholder="Hours to expiry" style="width:140px"><button class="b" onclick="add()">Add listing</button></div></div><h2>My listings</h2>
+  ${table(['#','Item','Qty','Expiry','Status',''],mine.map(d=>`<tr><td>${d.id}</td><td>${d.item}</td><td>${d.qty}</td><td>${fmt(d.exp)}</td><td>${pill(d.st)}</td><td>${['Available','Claimed'].includes(d.st)?`<button class="s" onclick="move(${d.id},'Cancelled','${nm('restaurants',who.rest)}')">Cancel</button>`:''}</td></tr>`))}`}
+ if(tab==='ngo'){const av=db.donations.filter(d=>d.st==='Available'&&d.exp>Date.now()),mine=db.donations.filter(d=>d.nid==who.ngo);
+  return `<div class="bar"><b>NGO:</b>${sel('ngo','ngos')}</div><h2>Available donations</h2>
+  ${table(['#','Restaurant','Item','Qty','Expires',''],av.map(d=>`<tr><td>${d.id}</td><td>${nm('restaurants',d.rid)}</td><td>${d.item}</td><td>${d.qty}</td><td>${fmt(d.exp)}</td><td><button class="b sm" onclick="move(${d.id},'Claimed','${nm('ngos',who.ngo)}',{nid:${who.ngo}})">Claim</button></td></tr>`))}
+  <h2>My claims</h2>${table(['#','Item','Qty','Status'],mine.map(d=>`<tr><td>${d.id}</td><td>${d.item}</td><td>${d.qty}</td><td>${pill(d.st)}</td></tr>`))}`}
+ if(tab==='vol'){const q=db.donations.filter(d=>d.st==='Claimed'),mine=db.donations.filter(d=>d.st==='PickedUp'&&d.vid==who.vol);
+  return `<div class="bar"><b>Volunteer:</b>${sel('vol','volunteers')}</div><h2>Claimed, waiting for pickup</h2>
+  ${table(['#','From','To NGO','Item','Qty',''],q.map(d=>`<tr><td>${d.id}</td><td>${nm('restaurants',d.rid)}</td><td>${nm('ngos',d.nid)}</td><td>${d.item}</td><td>${d.qty}</td><td><button class="b sm" onclick="move(${d.id},'PickedUp','${nm('volunteers',who.vol)}',{vid:${who.vol}})">Record pickup</button></td></tr>`))}
+  <h2>My deliveries in progress</h2>${table(['#','Item','To NGO',''],mine.map(d=>`<tr><td>${d.id}</td><td>${d.item}</td><td>${nm('ngos',d.nid)}</td><td><button class="b sm" onclick="move(${d.id},'Delivered','${nm('volunteers',who.vol)}')">Mark delivered</button></td></tr>`))}`}
+ return `<h2>Audit trail (every status change)</h2><pre>SELECT * FROM audit_log ORDER BY changed_at DESC;</pre>`+table(['Log','Time','Donation','From','To','By'],[...db.audit].reverse().map(a=>`<tr><td>${a.id}</td><td>${fmt(a.ts)}</td><td>#${a.did}</td><td>${a.from}</td><td>${a.to}</td><td>${a.by}</td></tr>`))}
+function render(){sweep();save();const T=[['dash','Dashboard'],['rest','Restaurant'],['ngo','NGO'],['vol','Volunteer'],['aud','Audit log']];
+ $('#nav').innerHTML=T.map(([k,l])=>`<button class="${tab==k?'on':''}" onclick="tab='${k}';render()">${l}</button>`).join('')+`<button onclick="if(confirm('Reset all demo data?')){db=seed();render()}">Reset</button>`;
+ $('#app').innerHTML=views()}
+render();setInterval(()=>{if(!document.activeElement||!/INPUT|SELECT/.test(document.activeElement.tagName))render()},30000);
+</script></body></html>
